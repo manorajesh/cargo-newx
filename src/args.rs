@@ -13,4 +13,8 @@ pub struct Args {
     /// Verbosity level
     #[clap(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
+
+    /// MIT license names
+    #[clap(short, long, default_value = "<copyright holders>")]
+    pub names: String,
 }
