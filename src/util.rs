@@ -10,17 +10,18 @@ pub fn is_empty_or_dir(path: &Path) -> std::io::Result<bool> {
     }
 }
 
-pub fn cargotoml(name: String) -> String {
-    format!(
-r#"[package]
-name = "{}"
-version = "0.1.0"
-edition = "2021"
-    
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-    
-[dependencies]
-    "#, name)
+pub fn cargotoml(name: String) -> Vec<String> {
+    vec![
+    "[package]".to_string(),
+    format!("name = \"{}\"", name),
+    "version = \"0.1.0\"".to_string(),
+    "edition = \"2021\"".to_string(),
+    "".to_string(),
+    "# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html".to_string(),
+    "".to_string(),
+    "[dependencies]".to_string(),
+    "".to_string(),
+]
 }
 
 pub fn helloworld_rs() -> String {
@@ -29,7 +30,7 @@ r#"fn main() {
 }"#.to_string()
 }
 
-pub fn mitlicense(names: String, year: String) -> String {
+pub fn mitlicense(names: &String, year: &String) -> String {
     format!(
 r#"Copyright (c) {} {}
 

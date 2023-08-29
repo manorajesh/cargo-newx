@@ -27,27 +27,44 @@ fn main() {
         .init();
 
     // Create new package
-    let gen = PackageGen::new(&args.path, args.names);
+    let gen = PackageGen::new(&args.path, args.names.clone());
     match gen.default_new() {
         Ok(msg) => log::log!(log::Level::Info, "{}", msg),
-        Err(e) => log::error!("{}", e),
+        Err(e) => { log::error!("{}", e); return; },
+    }
+
+    if !args.names.is_empty() {
+        match gen.create_license() {
+            Ok(msg) => log::log!(log::Level::Info, "{}", msg),
+            Err(e) => { log::error!("{}", e); return; },
+        }
+    }
+
+    
+    if !args.readme {
+        match gen.create_readme() {
+            Ok(msg) => log::log!(log::Level::Info, "{}", msg),
+            Err(e) => { log::error!("{}", e); return; },
+        }
     }
 
 }
 
 struct PackageGen {
-    path: Box<Path>,
+    path: String,
     package_name: String,
     year: String,
     names: String,
+    cargo_toml: Vec<String>,
 }
 
 impl PackageGen {
-    fn new(path: &'static String, names: String) -> Self {
-        let path = Box::new(Path::new(&path));
+    fn new(path_string: &String, names: String) -> Self {
+        let path = Path::new(path_string);
         let package_name = path.file_name().unwrap().to_str().unwrap().to_string();
         let year = chrono::Utc::now().format("%Y").to_string();
-        Self { path, package_name, year, names }
+        let cargo_toml = cargotoml(package_name.clone());
+        Self { path: path_string.clone(), package_name, year, names, cargo_toml }
     }
 
     fn default_new(&self) -> std::io::Result<String> {
@@ -56,18 +73,21 @@ impl PackageGen {
         // create Cargo.toml with defaults
         // create .gitignore
 
+        // create path
+        let path = Path::new(&self.path);
+
         // check if path exists
-        if self.path.exists() {
+        if path.exists() {
             // check if path is empty
-            if !is_empty_or_dir(&self.path)? {
-                return Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, format!("{} is not empty", self.path.display())));
+            if !is_empty_or_dir(&path)? {
+                return Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, format!("{} is not empty", path.display())));
             }
         }
 
         // create path and change to it
         // init git repo
-        git2::Repository::init(&self.path).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        env::set_current_dir(&self.path)?;  
+        git2::Repository::init(&path).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        env::set_current_dir(&path)?;  
 
         // create src/main.rs
         // create src directory
@@ -77,25 +97,44 @@ impl PackageGen {
         File::create("src/main.rs")?.write_all(helloworld_rs().as_bytes())?;
 
         // create Cargo.toml with defaults
-        let cargo_toml = cargotoml(self.package_name.to_string());
-        File::create("Cargo.toml")?.write_all(cargo_toml.as_bytes())?;
+        File::create("Cargo.toml")?.write_all(self.cargo_toml.join("\n").as_bytes())?;
 
         // create .gitignore
         File::create(".gitignore")?.write_all("/target\n".as_bytes())?;
 
-        Ok(format!("Created {}", self.path.display()))
+        Ok(format!("Created {}", path.display()))
     }
 
     fn create_readme(&self) -> std::io::Result<String> {
+        let path = Path::new(&self.path);
+
         // create README.md
         let readme = format!("# {}", self.package_name);
         File::create("README.md")?.write_all(readme.as_bytes())?;
-        Ok(format!("Created {}", self.path.display()))
+
+        // Add README.md to Cargo.toml
+        let empty_position = self.cargo_toml.iter().position(|s| s.is_empty()).unwrap();
+        // self.cargo_toml.insert(empty_position, "readme = \"README.md\"");
+        let mut cargo_toml = self.cargo_toml.clone();
+        cargo_toml.insert(empty_position, "readme = \"README.md\"".to_string());
+        File::create("Cargo.toml")?.write_all(cargo_toml.join("\n").as_bytes())?;
+
+        Ok(format!("Created {}", path.display()))
     }
 
     fn create_license(&self) -> std::io::Result<String> {
+        let path = Path::new(&self.path);
+        
         // create LICENSE
-        File::create("LICENSE")?.write_all(mitlicense(self.names, self.year).as_bytes())?;
-        Ok(format!("Created {}", self.path.display()))
+        File::create("LICENSE")?.write_all(mitlicense(&self.names, &self.year).as_bytes())?;
+
+        // Add LICENSE to Cargo.toml
+        let empty_position = self.cargo_toml.iter().position(|s| s.is_empty()).unwrap();
+        // self.cargo_toml.insert(empty_position, "license = \"MIT\"");
+        let mut cargo_toml = self.cargo_toml.clone();
+        cargo_toml.insert(empty_position, "license = \"MIT\"".to_string());
+        File::create("Cargo.toml")?.write_all(cargo_toml.join("\n").as_bytes())?;
+
+        Ok(format!("Created {}", path.display()))
     }
 }

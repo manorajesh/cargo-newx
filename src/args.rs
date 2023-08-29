@@ -14,7 +14,14 @@ pub struct Args {
     #[clap(short, long, action = clap::ArgAction::Count)]
     pub verbose: u8,
 
-    /// MIT license names
+    /// Create Apache LICENSE
+    /// TODO: Implement
+    
+    /// Create README.md [default: true]
+    #[clap(short, long, action)]
+    pub readme: bool,
+
+    /// Create MIT LICENSE with names
     #[clap(short, long, default_value = "<copyright holders>")]
     pub names: String,
 }
